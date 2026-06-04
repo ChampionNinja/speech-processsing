@@ -7,8 +7,6 @@ logger = logging.getLogger("pipeline")
 
 def run_pipeline(url: str, model_name: str):
     """Orchestrates the full pipeline for a single URL."""
-    
-    
     logger.info(f"Starting pipeline for: {url}")
     
     # 1. Download
@@ -42,6 +40,7 @@ def main():
     parser.add_argument("--url", help="Single YouTube URL")
     parser.add_argument("--input", help="Path to text file containing YouTube URLs (one per line)")
     parser.add_argument("--model", default="base", choices=["tiny", "base", "small", "medium", "large"], help="Whisper model size")
+    parser.add_argument("--dry-run", action="store_true", help="Print plan without executing")
     
     args = parser.parse_args()
 
@@ -61,6 +60,12 @@ def main():
 
     if not urls:
         logger.warning("No URLs provided. Use --url or --input.")
+        return
+
+    if args.dry_run:
+        logger.info(f"[DRY RUN] Would process {len(urls)} URLs using model '{args.model}':")
+        for url in urls:
+            logger.info(f" - Plan: {url}")
         return
 
     logger.info(f"Processing {len(urls)} URLs...")

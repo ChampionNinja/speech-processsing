@@ -48,6 +48,7 @@ python main.py --input urls.txt --model small
 - `--url`: Process a single YouTube URL.
 - `--input`: Process a list of URLs from a text file.
 - `--model`: Whisper model size (`tiny`, `base`, `small`, `medium`, `large`). Default is `base`.
+- `--dry-run`: Preview the plan without executing downloads or transcription.
 
 ## 📂 Project Structure
 
