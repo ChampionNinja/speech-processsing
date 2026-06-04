@@ -8,8 +8,8 @@ A minimal, production-grade Python pipeline for automated audio acquisition, pre
 ## 🚀 Features
 
 - **Automated Acquisition**: Reliable downloads via `yt-dlp` with automatic retries.
-- **Audio Standardization**: Seamless preprocessing using `FFmpeg` (WAV, 16kHz, Mono).
-- **Local Transcription**: High-accuracy speech-to-text using OpenAI's `Whisper` models.
+- **Audio Standardization**: Seamless preprocessing using `FFmpeg` with automatic retries.
+- **Local Transcription**: High-accuracy speech-to-text using OpenAI's `Whisper` models with automatic retries.
 - **Structured Output**: Machine-readable JSON including timestamped segments and metadata.
 - **Batch Processing**: Orchestrate processing for hundreds of URLs via text file input.
 - **Production Ready**: Comprehensive logging, error handling, and idempotency checks.

@@ -75,31 +75,37 @@ def process_audio(input_path: str, output_dir: str = "data/processed_audio") -> 
         output_path
     ]
     
-    try:
-        subprocess.run(command, check=True, capture_output=True)
-        logger.info(f"Successfully processed audio: {output_path}")
-        return output_path
-    except subprocess.CalledProcessError as e:
-        logger.error(f"FFmpeg failed for {input_path}: {e.stderr.decode()}")
-        return None
+    for attempt in range(3):
+        try:
+            subprocess.run(command, check=True, capture_output=True)
+            logger.info(f"Successfully processed audio: {output_path}")
+            return output_path
+        except subprocess.CalledProcessError as e:
+            logger.warning(f"FFmpeg attempt {attempt + 1} failed for {input_path}: {e.stderr.decode()}")
+            if attempt == 2:
+                logger.error(f"FFmpeg failed after 3 attempts: {input_path}")
+    return None
 
 def transcribe_audio(audio_path: str, model_name: str = "base") -> Optional[Dict]:
     """Runs transcription using local Whisper model."""
-    try:
-        logger.info(f"Loading Whisper model: {model_name}")
-        model = whisper.load_model(model_name)
-        logger.info(f"Transcribing: {audio_path}")
-        result = model.transcribe(audio_path)
-        return {
-            "full_text": result["text"],
-            "segments": [
-                {"start": s["start"], "end": s["end"], "text": s["text"]}
-                for s in result["segments"]
-            ]
-        }
-    except Exception as e:
-        logger.error(f"Transcription failed for {audio_path}: {e}")
-        return None
+    for attempt in range(3):
+        try:
+            logger.info(f"Attempt {attempt + 1}: Loading Whisper model: {model_name}")
+            model = whisper.load_model(model_name)
+            logger.info(f"Transcribing: {audio_path}")
+            result = model.transcribe(audio_path)
+            return {
+                "full_text": result["text"],
+                "segments": [
+                    {"start": s["start"], "end": s["end"], "text": s["text"]}
+                    for s in result["segments"]
+                ]
+            }
+        except Exception as e:
+            logger.warning(f"Transcription attempt {attempt + 1} failed for {audio_path}: {e}")
+            if attempt == 2:
+                logger.error(f"Transcription failed after 3 attempts: {audio_path}")
+    return None
 
 def save_output(video_metadata: Dict, transcript: Dict, output_dir: str = "outputs/json"):
     """Generates a structured JSON output file."""
