@@ -107,6 +107,75 @@ def transcribe_audio(audio_path: str, model_name: str = "base") -> Optional[Dict
                 logger.error(f"Transcription failed after 3 attempts: {audio_path}")
     return None
 
+def add_speaker_labels(audio_path: str, whisper_segments: List[Dict], hf_token: str) -> List[Dict]:
+    """Runs diarization and matches speakers to Whisper segments using timestamp overlap."""
+    try:
+        from pyannote.audio import Pipeline
+    except ImportError:
+        logger.error("pyannote.audio not installed. Diarization fallback to 'unknown'. Run: pip install pyannote.audio")
+        for s in whisper_segments:
+            s["speaker"] = "unknown"
+        return whisper_segments
+
+    try:
+        logger.info("Loading pyannote diarization pipeline...")
+        pipeline = Pipeline.from_pretrained(
+            "pyannote/speaker-diarization-3.1",
+            token=hf_token
+        )
+        
+        if pipeline is None:
+            raise ValueError("Pipeline could not be loaded. Check your HF_TOKEN and model access permissions.")
+
+        # Check if we have GPU
+        import torch
+        if torch.cuda.is_available():
+            pipeline.to(torch.device("cuda"))
+            logger.info("Using GPU for diarization.")
+
+        logger.info(f"Running diarization on: {audio_path}")
+        diarization = pipeline(audio_path)
+        
+       # Convert diarization results to a readable list
+        diar_segments = []
+
+        for segment, speaker in diarization.speaker_diarization:
+            diar_segments.append({
+                "start": segment.start,
+                "end": segment.end,
+                "speaker": speaker
+            })
+
+        if not diar_segments:
+            logger.warning(f"No speakers detected by diarization for: {audio_path}")
+        # Match each whisper segment to the speaker with the most overlap
+        labeled_segments = []
+        for ws in whisper_segments:
+            ws_start, ws_end = ws["start"], ws["end"]
+            speaker_overlaps = {}
+
+            for ds in diar_segments:
+                overlap = max(0, min(ws_end, ds["end"]) - max(ws_start, ds["start"]))
+                if overlap > 0:
+                    speaker_overlaps[ds["speaker"]] = speaker_overlaps.get(ds["speaker"], 0) + overlap
+
+            if speaker_overlaps:
+                best_speaker = max(speaker_overlaps, key=speaker_overlaps.get)
+                ws["speaker"] = best_speaker
+            else:
+                ws["speaker"] = "unknown"
+            labeled_segments.append(ws)
+
+        logger.info(f"Speaker labeling complete for: {audio_path}")
+        return labeled_segments
+
+    except Exception as e:
+        logger.error(f"Diarization failed: {e}")
+        logger.info("Falling back to 'unknown' speaker labels.")
+        for s in whisper_segments:
+            s["speaker"] = "unknown"
+        return whisper_segments
+
 def save_output(video_metadata: Dict, transcript: Dict, output_dir: str = "outputs/json"):
     """Generates a structured JSON output file with transcript statistics."""
     video_id = video_metadata["video_id"]

@@ -44,11 +44,20 @@ Create a `urls.txt` with one URL per line:
 python main.py --input urls.txt --model small
 ```
 
+### Speaker Diarization (Optional)
+This pipeline supports speaker diarization via `pyannote.audio`. To enable it:
+1. Accept the terms for `pyannote/speaker-diarization-3.1` on [HuggingFace](https://huggingface.co/pyannote/speaker-diarization-3.1).
+2. Provide your HuggingFace token:
+   - Via CLI: `--hf-token YOUR_TOKEN`
+   - Via Env File: Create a `.env` file with `HF_TOKEN=YOUR_TOKEN`
+   - Via Shell: `set HF_TOKEN=YOUR_TOKEN` (Windows) or `export HF_TOKEN=YOUR_TOKEN` (Linux/macOS)
+
 ### Options
 - `--url`: Process a single YouTube URL.
 - `--input`: Process a list of URLs from a text file.
 - `--model`: Whisper model size (`tiny`, `base`, `small`, `medium`, `large`). Default is `base`.
 - `--dry-run`: Preview the plan without executing downloads or transcription.
+- `--hf-token`: HuggingFace token for speaker diarization.
 
 ## 📂 Project Structure
 
