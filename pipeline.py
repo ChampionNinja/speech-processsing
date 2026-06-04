@@ -108,9 +108,19 @@ def transcribe_audio(audio_path: str, model_name: str = "base") -> Optional[Dict
     return None
 
 def save_output(video_metadata: Dict, transcript: Dict, output_dir: str = "outputs/json"):
-    """Generates a structured JSON output file."""
+    """Generates a structured JSON output file with transcript statistics."""
     video_id = video_metadata["video_id"]
     output_path = os.path.join(output_dir, f"{video_id}_output.json")
+    
+    # Calculate statistics
+    full_text = transcript["full_text"]
+    segments = transcript["segments"]
+    
+    word_count = len(full_text.split())
+    segment_count = len(segments)
+    
+    # Duration based on segments if available, otherwise fallback to metadata
+    audio_duration_seconds = segments[-1]["end"] if segments else video_metadata["duration_seconds"]
     
     output_data = {
         "video_metadata": {
@@ -123,10 +133,17 @@ def save_output(video_metadata: Dict, transcript: Dict, output_dir: str = "outpu
             "sample_rate": 16000,
             "channels": 1
         },
-        "transcript": transcript
+        "transcript": {
+            **transcript,
+            "statistics": {
+                "word_count": word_count,
+                "segment_count": segment_count,
+                "audio_duration_seconds": round(audio_duration_seconds, 2)
+            }
+        }
     }
     
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(output_data, f, indent=2, ensure_ascii=False)
     
-    logger.info(f"Saved structured JSON: {output_path}")
+    logger.info(f"Saved structured JSON with stats: {output_path}")
