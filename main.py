@@ -1,6 +1,7 @@
 import argparse
 import os
 import logging
+import whisper
 from dotenv import load_dotenv
 import pipeline
 
@@ -9,7 +10,7 @@ load_dotenv()
 
 logger = logging.getLogger("pipeline")
 
-def run_pipeline(url: str, model_name: str, hf_token: str):
+def run_pipeline(url: str, model, hf_token: str):
     """Orchestrates the full pipeline for a single URL."""
     logger.info(f"Starting pipeline for: {url}")
     
@@ -31,7 +32,7 @@ def run_pipeline(url: str, model_name: str, hf_token: str):
         return
 
     # 3. Transcribe
-    transcript_result = pipeline.transcribe_audio(audio_path, model_name)
+    transcript_result = pipeline.transcribe_audio(audio_path, model)
     if not transcript_result:
         return
 
@@ -94,9 +95,14 @@ def main():
         return
 
     logger.info(f"Processing {len(urls)} URLs...")
+    
+    # Load model once
+    logger.info(f"Loading Whisper model: {args.model}")
+    model = whisper.load_model(args.model)
+    
     for url in urls:
         try:
-            run_pipeline(url, args.model, hf_token)
+            run_pipeline(url, model, hf_token)
         except Exception as e:
             logger.error(f"Critical failure processing {url}: {e}")
             continue

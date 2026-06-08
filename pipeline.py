@@ -86,13 +86,11 @@ def process_audio(input_path: str, output_dir: str = "data/processed_audio") -> 
                 logger.error(f"FFmpeg failed after 3 attempts: {input_path}")
     return None
 
-def transcribe_audio(audio_path: str, model_name: str = "base") -> Optional[Dict]:
-    """Runs transcription using local Whisper model."""
+def transcribe_audio(audio_path: str, model) -> Optional[Dict]:
+    """Runs transcription using pre-loaded Whisper model."""
     for attempt in range(3):
         try:
-            logger.info(f"Attempt {attempt + 1}: Loading Whisper model: {model_name}")
-            model = whisper.load_model(model_name)
-            logger.info(f"Transcribing: {audio_path}")
+            logger.info(f"Attempt {attempt + 1}: Transcribing: {audio_path}")
             result = model.transcribe(audio_path)
             return {
                 "full_text": result["text"],
