@@ -163,6 +163,8 @@ data/processed_audio/*
 !data/processed_audio/.gitkeep
 outputs/json/*
 !outputs/json/.gitkeep
+outputs/subtitles/*
+!outputs/subtitles/.gitkeep
 logs/*
 !logs/.gitkeep
 

@@ -10,7 +10,9 @@ A minimal, production-grade Python pipeline for automated audio acquisition, pre
 - **Automated Acquisition**: Reliable downloads via `yt-dlp` with automatic retries.
 - **Audio Standardization**: Seamless preprocessing using `FFmpeg` with automatic retries.
 - **Local Transcription**: High-accuracy speech-to-text using OpenAI's `Whisper` models with automatic retries.
-- **Structured Output**: Machine-readable JSON including timestamped segments and metadata.
+- **Structured Output**: Machine-readable JSON including timestamped segments, speaker statistics, and metadata.
+- **Subtitle Generation**: Automatically exports standard `.srt` and `.vtt` subtitle formats for video editors or YouTube.
+- **Speaker Analytics**: Calculates and displays speaker talk-time distribution and WPM speech rates in the terminal.
 - **Batch Processing**: Orchestrate processing for hundreds of URLs via text file input.
 - **Production Ready**: Comprehensive logging, error handling, and idempotency checks.
 
@@ -67,7 +69,8 @@ yturl/
 │   ├── raw/                # Original downloaded media
 │   └── processed_audio/    # Standardized 16kHz WAV files
 ├── outputs/
-│   └── json/               # Final structured transcripts
+│   ├── json/               # Final structured transcripts with speaker statistics
+│   └── subtitles/          # Generated SRT and VTT subtitle files
 ├── logs/                   # Pipeline execution logs
 ├── main.py                 # CLI Entry point & Orchestration
 ├── pipeline.py             # Core pipeline logic
@@ -80,7 +83,7 @@ yturl/
 2. **Download**: `yt-dlp` fetches audio; retries up to 3 times on failure.
 3. **Process**: `FFmpeg` converts media to standardized WAV (Mono, 16kHz).
 4. **Transcribe**: `Whisper` generates full text and timestamped segments.
-5. **Output**: Metadata and transcript are serialized to a structured JSON file.
+5. **Output**: Metadata and transcript are serialized to a structured JSON file, speaker metrics are printed to the console, and SRT/VTT subtitle files are generated.
 
 ## ⚖️ License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

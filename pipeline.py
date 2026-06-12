@@ -174,6 +174,106 @@ def add_speaker_labels(audio_path: str, whisper_segments: List[Dict], hf_token: 
             s["speaker"] = "unknown"
         return whisper_segments
 
+def format_timestamp(seconds: float, srt: bool = True) -> str:
+    """Formats seconds to SRT (HH:MM:SS,mmm) or VTT (HH:MM:SS.mmm) format."""
+    hrs = int(seconds // 3600)
+    mins = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
+    ms = int(round((seconds - int(seconds)) * 1000))
+    
+    if ms >= 1000:
+        ms -= 1000
+        secs += 1
+        if secs >= 60:
+            secs -= 60
+            mins += 1
+            if mins >= 60:
+                mins -= 60
+                hrs += 1
+                
+    sep = "," if srt else "."
+    return f"{hrs:02d}:{mins:02d}:{secs:02d}{sep}{ms:03d}"
+
+def export_subtitles(segments: List[Dict], video_id: str, output_dir: str = "outputs/subtitles"):
+    """Generates and saves SRT and VTT files from transcript segments."""
+    os.makedirs(output_dir, exist_ok=True)
+    
+    srt_path = os.path.join(output_dir, f"{video_id}.srt")
+    vtt_path = os.path.join(output_dir, f"{video_id}.vtt")
+    
+    # Write SRT
+    with open(srt_path, "w", encoding="utf-8") as f:
+        for idx, seg in enumerate(segments, 1):
+            start = format_timestamp(seg["start"], srt=True)
+            end = format_timestamp(seg["end"], srt=True)
+            speaker_prefix = f"[{seg.get('speaker', 'unknown')}] " if seg.get("speaker") and seg["speaker"] != "unknown" else ""
+            text = seg["text"].strip()
+            f.write(f"{idx}\n{start} --> {end}\n{speaker_prefix}{text}\n\n")
+            
+    # Write VTT
+    with open(vtt_path, "w", encoding="utf-8") as f:
+        f.write("WEBVTT\n\n")
+        for idx, seg in enumerate(segments, 1):
+            start = format_timestamp(seg["start"], srt=False)
+            end = format_timestamp(seg["end"], srt=False)
+            speaker_prefix = f"[{seg.get('speaker', 'unknown')}] " if seg.get("speaker") and seg["speaker"] != "unknown" else ""
+            text = seg["text"].strip()
+            f.write(f"{idx}\n{start} --> {end}\n{speaker_prefix}{text}\n\n")
+            
+    logger.info(f"Subtitles exported successfully: {srt_path} & {vtt_path}")
+
+def calculate_speaker_stats(segments: List[Dict]) -> List[Dict]:
+    """Calculates statistics for each speaker in the transcription."""
+    stats = {}
+    total_time = 0.0
+    
+    for seg in segments:
+        speaker = seg.get("speaker", "unknown")
+        duration = max(0.0, seg["end"] - seg["start"])
+        word_count = len(seg["text"].split())
+        total_time += duration
+        
+        if speaker not in stats:
+            stats[speaker] = {"talk_time": 0.0, "word_count": 0, "segments": 0}
+            
+        stats[speaker]["talk_time"] += duration
+        stats[speaker]["word_count"] += word_count
+        stats[speaker]["segments"] += 1
+
+    # Finalize stats calculations
+    speaker_analytics = []
+    for speaker, data in stats.items():
+        talk_time = data["talk_time"]
+        word_count = data["word_count"]
+        pct = (talk_time / total_time * 100) if total_time > 0 else 0.0
+        wpm = (word_count / (talk_time / 60)) if talk_time > 0 else 0.0
+        
+        speaker_analytics.append({
+            "speaker": speaker,
+            "talk_time_seconds": round(talk_time, 2),
+            "percentage": round(pct, 1),
+            "word_count": word_count,
+            "words_per_minute": round(wpm, 1),
+            "segment_count": data["segments"]
+        })
+        
+    return speaker_analytics
+
+def print_speaker_summary(speaker_analytics: List[Dict]):
+    """Prints a beautiful summary table of speaker analytics to the terminal."""
+    logger.info("\n" + "="*70 + "\n" + "                   SPEAKER DIARIZATION STATISTICS\n" + "="*70)
+    logger.info(f"{'Speaker':<15} | {'Talk Time (s)':<13} | {'Speech %':<8} | {'Word Count':<10} | {'WPM':<6}")
+    logger.info("-" * 70)
+    for spk in sorted(speaker_analytics, key=lambda x: x["talk_time_seconds"], reverse=True):
+        logger.info(
+            f"{spk['speaker']:<15} | "
+            f"{spk['talk_time_seconds']:<13.2f} | "
+            f"{spk['percentage']:>7.1f}% | "
+            f"{spk['word_count']:<10} | "
+            f"{spk['words_per_minute']:<6.1f}"
+        )
+    logger.info("="*70 + "\n")
+
 def save_output(video_metadata: Dict, transcript: Dict, output_dir: str = "outputs/json"):
     """Generates a structured JSON output file with transcript statistics."""
     video_id = video_metadata["video_id"]
@@ -189,6 +289,10 @@ def save_output(video_metadata: Dict, transcript: Dict, output_dir: str = "outpu
     # Duration based on segments if available, otherwise fallback to metadata
     audio_duration_seconds = segments[-1]["end"] if segments else video_metadata["duration_seconds"]
     
+    # Calculate speaker analytics
+    speaker_analytics = calculate_speaker_stats(segments)
+    print_speaker_summary(speaker_analytics)
+    
     output_data = {
         "video_metadata": {
             "video_id": video_id,
@@ -202,6 +306,7 @@ def save_output(video_metadata: Dict, transcript: Dict, output_dir: str = "outpu
         },
         "transcript": {
             **transcript,
+            "speaker_analytics": speaker_analytics,
             "statistics": {
                 "word_count": word_count,
                 "segment_count": segment_count,
@@ -214,3 +319,6 @@ def save_output(video_metadata: Dict, transcript: Dict, output_dir: str = "outpu
         json.dump(output_data, f, indent=2, ensure_ascii=False)
     
     logger.info(f"Saved structured JSON with stats: {output_path}")
+    
+    # Export subtitles
+    export_subtitles(segments, video_id)
